@@ -73,5 +73,5 @@ fn loop_socket(
   }
 }
 
-@external(erlang, "server_ffi", "file_mtime")
+@external(erlang, "dev_ffi", "file_mtime")
 fn file_mtime(path: String) -> Int
