@@ -1,4 +1,4 @@
--module(server_ffi).
+-module(dev_ffi).
 -export([file_mtime/1, dir_max_mtime/1, run_cmd/1, is_dev/0]).
 
 is_dev() ->
