@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON to Gleam Model Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 16px 24px;
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffcbcb;
+    }
+    header input {
+      padding: 6px 12px;
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      width: 200px;
+    }
+    header label {
+      font-size: 13px;
+      color: #a0a0b8;
+    }
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a0a0b8;
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+    }
+    .divider {
+      width: 1px;
+      background: #0f3460;
+    }
+    textarea, pre {
+      flex: 1;
+      padding: 16px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      border: none;
+      outline: none;
+      resize: none;
+      overflow: auto;
+    }
+    textarea {
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+    textarea::placeholder { color: #4a4a6a; }
+    pre {
+      background: #12122a;
+      color: #e0e0e0;
+      margin: 0;
+      white-space: pre;
+    }
+    .error { color: #ff6b6b; }
+    .kw { color: #ffcbcb; }
+    .type { color: #a8d8ea; }
+    .field { color: #e0e0e0; }
+    .comment { color: #6a6a8a; }
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 16px;
+      padding: 4px 12px;
+      background: #0f3460;
+      border: 1px solid #1a5276;
+      border-radius: 4px;
+      color: #a0a0b8;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: #1a5276; color: #e0e0e0; }
+    .output-wrap { position: relative; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>JSON &rarr; Gleam</h1>
+    <label>Root type name:</label>
+    <input type="text" id="rootName" value="Root" spellcheck="false">
+  </header>
+  <div class="container">
+    <div class="panel">
+      <div class="panel-header">JSON Input</div>
+      <textarea id="input" placeholder="Paste your JSON here..." spellcheck="false"></textarea>
+    </div>
+    <div class="divider"></div>
+    <div class="panel">
+      <div class="panel-header">Gleam Model</div>
+      <div class="output-wrap">
+        <button class="copy-btn" id="copyBtn">Copy</button>
+        <pre id="output"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const rootNameInput = document.getElementById('rootName');
+    const copyBtn = document.getElementById('copyBtn');
+
+    function pascalCase(str) {
+      return str
+        .replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase())
+        .replace(/^[a-z]/, c => c.toUpperCase());
+    }
+
+    const RESERVED = new Set([
+      'as', 'assert', 'auto', 'case', 'const', 'delegate', 'derive',
+      'echo', 'else', 'fn', 'if', 'implement', 'import', 'let',
+      'macro', 'opaque', 'panic', 'pub', 'test', 'todo', 'type', 'use',
+    ]);
+
+    function snakeCase(str) {
+      let name = str
+        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .toLowerCase()
+        .replace(/^_|_$/g, '');
+      if (RESERVED.has(name)) name = name + '_';
+      return name;
+    }
+
+    function gleamType(value, key, types, parentName) {
+      if (value === null || value === undefined) {
+        return 'Option(String)';
+      }
+      if (typeof value === 'string') return 'String';
+      if (typeof value === 'boolean') return 'Bool';
+      if (typeof value === 'number') {
+        return Number.isInteger(value) ? 'Int' : 'Float';
+      }
+      if (Array.isArray(value)) {
+        if (value.length === 0) return 'List(String)';
+        // For arrays of objects, merge all elements to find optional fields
+        if (typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
+          const typeName = pascalCase(key || 'Anonymous');
+          generateTypeFromArray(typeName, value, types);
+          return `List(${typeName})`;
+        }
+        const inner = gleamType(value[0], key, types, parentName);
+        return `List(${inner})`;
+      }
+      if (typeof value === 'object') {
+        const typeName = pascalCase(key || 'Anonymous');
+        generateType(typeName, value, types);
+        return typeName;
+      }
+      return 'String';
+    }
+
+    // Scan ALL array elements to detect which fields are optional
+    function generateTypeFromArray(name, arr, types) {
+      if (types.has(name)) return;
+      types.set(name, null);
+
+      // Collect all keys across all elements
+      const allKeys = new Set();
+      const keyCounts = {};
+      for (const item of arr) {
+        if (typeof item !== 'object' || item === null) continue;
+        for (const key of Object.keys(item)) {
+          allKeys.add(key);
+          keyCounts[key] = (keyCounts[key] || 0) + 1;
+        }
+      }
+
+      // Use the first element for type inference, but mark missing fields as optional
+      const first = arr[0];
+      const fields = [];
+      for (const key of allKeys) {
+        const fieldName = snakeCase(key);
+        const sampleValue = first[key];
+        let fieldType = gleamType(sampleValue !== undefined ? sampleValue : null, key, types, name);
+        const optional = keyCounts[key] < arr.length;
+        fields.push({ name: fieldName, jsonKey: key, type: fieldType, optional });
+      }
+
+      types.set(name, fields);
+    }
+
+    function generateType(name, obj, types) {
+      // Avoid duplicates
+      if (types.has(name)) return;
+      types.set(name, null); // placeholder to prevent recursion
+
+      const fields = [];
+      for (const [key, value] of Object.entries(obj)) {
+        const fieldName = snakeCase(key);
+        const fieldType = gleamType(value, key, types, name);
+        fields.push({ name: fieldName, jsonKey: key, type: fieldType, optional: false });
+      }
+
+      types.set(name, fields);
+    }
+
+    function generate(json, rootName) {
+      const types = new Map();
+      const root = pascalCase(rootName || 'Root');
+
+      if (Array.isArray(json)) {
+        if (json.length > 0 && typeof json[0] === 'object' && json[0] !== null) {
+          generateTypeFromArray(root, json, types);
+          return { types, note: `/// Top-level is List(${root})` };
+        }
+        return { types: new Map(), note: '/// Top-level is a List' };
+      }
+
+      generateType(root, json, types);
+      return { types, note: null };
+    }
+
+    function decoderForType(fieldType) {
+      if (fieldType === 'String') return 'decode.string';
+      if (fieldType === 'Int') return 'decode.int';
+      if (fieldType === 'Float') return 'decode.float';
+      if (fieldType === 'Bool') return 'decode.bool';
+      if (fieldType === 'Option(String)') return 'decode.optional(decode.string)';
+      if (fieldType.startsWith('Option(')) {
+        const inner = fieldType.slice(7, -1);
+        return `decode.optional(${decoderForType(inner)})`;
+      }
+      if (fieldType.startsWith('List(')) {
+        const inner = fieldType.slice(5, -1);
+        return `decode.list(${decoderForType(inner)})`;
+      }
+      // It's a custom type — use its decoder function
+      const fnName = snakeCase(fieldType) + '_decoder()';
+      return fnName;
+    }
+
+    function defaultForType(fieldType) {
+      if (fieldType === 'String') return '""';
+      if (fieldType === 'Int') return '0';
+      if (fieldType === 'Float') return '0.0';
+      if (fieldType === 'Bool') return 'False';
+      if (fieldType.startsWith('List(')) return '[]';
+      if (fieldType.startsWith('Option(')) return 'option.None';
+      return '""';
+    }
+
+    function renderTypes(types, note) {
+      let lines = [];
+
+      if (note) {
+        lines.push(`<span class="comment">${escHtml(note)}</span>\n`);
+      }
+
+      // --- Types ---
+      lines.push(`<span class="comment">// --- Types ---</span>\n`);
+      for (const [name, fields] of types) {
+        lines.push(`<span class="kw">pub type</span> <span class="type">${escHtml(name)}</span> {`);
+
+        const fieldLines = fields.map(f =>
+          `    <span class="field">${escHtml(f.name)}</span>: <span class="type">${escHtml(f.type)}</span>,`
+        );
+
+        lines.push(`  <span class="type">${escHtml(name)}</span>(`);
+        lines.push(fieldLines.join('\n'));
+        lines.push('  )');
+        lines.push('}\n');
+      }
+
+      // --- Decoders ---
+      lines.push(`<span class="comment">// --- Decoders ---</span>\n`);
+      for (const [name, fields] of types) {
+        const fnName = snakeCase(name) + '_decoder';
+        lines.push(`<span class="kw">pub fn</span> <span class="field">${escHtml(fnName)}</span>() -> <span class="type">decode.Decoder</span>(<span class="type">${escHtml(name)}</span>) {`);
+
+        for (const f of fields) {
+          const dec = decoderForType(f.type);
+          if (f.optional) {
+            const def = defaultForType(f.type);
+            lines.push(`  <span class="kw">use</span> <span class="field">${escHtml(f.name)}</span> <span class="kw">&lt;-</span> <span class="type">decode.optional_field</span>(<span class="comment">"${escHtml(f.jsonKey)}"</span>, ${escHtml(def)}, ${escHtml(dec)})`);
+          } else {
+            lines.push(`  <span class="kw">use</span> <span class="field">${escHtml(f.name)}</span> <span class="kw">&lt;-</span> <span class="type">decode.field</span>(<span class="comment">"${escHtml(f.jsonKey)}"</span>, ${escHtml(dec)})`);
+          }
+        }
+
+        lines.push(`  <span class="type">decode.success</span>(<span class="type">${escHtml(name)}</span>(${fields.map(f => escHtml(f.name) + ':').join(', ')}))`);
+        lines.push('}\n');
+      }
+
+      return lines.join('\n');
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function update() {
+      const raw = input.value.trim();
+      if (!raw) {
+        output.innerHTML = '<span class="comment">// Paste JSON on the left</span>';
+        return;
+      }
+
+      try {
+        const json = JSON.parse(raw);
+        const { types, note } = generate(json, rootNameInput.value);
+        output.innerHTML = renderTypes(types, note);
+      } catch (e) {
+        output.innerHTML = `<span class="error">// Invalid JSON: ${escHtml(e.message)}</span>`;
+      }
+    }
+
+    input.addEventListener('input', update);
+    rootNameInput.addEventListener('input', update);
+
+    copyBtn.addEventListener('click', () => {
+      const text = output.textContent || output.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+      });
+    });
+
+    update();
+  </script>
+</body>
+</html>

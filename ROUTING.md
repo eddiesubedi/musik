@@ -289,6 +289,7 @@ Create `server/src/layout.gleam`:
 import dev_reload
 import gleam/bytes_tree
 import gleam/http/response.{type Response}
+import gleam/list
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html.{html}
@@ -301,25 +302,27 @@ pub fn render(
   head head_extra: List(Element(Nil)),
   body body_children: List(Element(Nil)),
 ) -> Response(ResponseData) {
+  let head_children = [
+    html.meta([attribute.charset("utf-8")]),
+    html.meta([
+      attribute.content("width=device-width, initial-scale=1"),
+      attribute.name("viewport"),
+    ]),
+    html.title([], page_title),
+    html.script(
+      [attribute.src("/client.js"), attribute.type_("module")],
+      "",
+    ),
+    html.script(
+      [attribute.type_("module"), attribute.src("/lustre/runtime.mjs")],
+      "",
+    ),
+    ..head_extra
+  ]
+
   let page =
     html([], [
-      html.head([], [
-        html.meta([attribute.charset("utf-8")]),
-        html.meta([
-          attribute.content("width=device-width, initial-scale=1"),
-          attribute.name("viewport"),
-        ]),
-        html.title([], page_title),
-        html.script(
-          [attribute.src("/client.js"), attribute.type_("module")],
-          "",
-        ),
-        html.script(
-          [attribute.type_("module"), attribute.src("/lustre/runtime.mjs")],
-          "",
-        ),
-        ..head_extra
-      ]),
+      html.head([], head_children),
       html.body(
         [
           attribute.styles([
@@ -328,10 +331,9 @@ pub fn render(
             #("font-family", "sans-serif"),
           ]),
         ],
-        [
-          ..body_children,
+        list.append(body_children, [
           html.script([], dev_reload.script()),
-        ],
+        ]),
       ),
     ])
     |> element.to_document_string_tree

@@ -21,7 +21,8 @@ pub fn render(
       attribute.name("viewport"),
     ]),
     html.title([], page_title),
-    html.script([attribute.src("/client.js"), attribute.type_("module")], ""),
+    html.link([attribute.rel("stylesheet"), attribute.href("/output.css")]),
+    // html.script([attribute.src("/client.js"), attribute.type_("module")], ""),
     html.script(
       [attribute.type_("module"), attribute.src("/lustre/runtime.mjs")],
       "",
@@ -35,9 +36,9 @@ pub fn render(
       html.body(
         [
           attribute.styles([
-            #("max-width", "40rem"),
-            #("margin", "2rem auto"),
-            #("font-family", "sans-serif"),
+            // #("max-width", "40rem"),
+          // #("margin", "2rem auto"),
+          // #("font-family", "sans-serif"),
           ]),
         ],
         list.append(body_children, [

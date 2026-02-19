@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@source "../../src/**/*.gleam";
+@source "../../../client/src/**/*.gleam";
+
+html,
+body {
+    @apply bg-[#16181d] text-white;
+}

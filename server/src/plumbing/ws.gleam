@@ -1,6 +1,7 @@
 import gleam/erlang/process.{type Selector, type Subject}
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
+import gleam/io
 import gleam/json
 import gleam/option.{type Option, Some}
 import lustre
@@ -22,11 +23,12 @@ type ComponentSocket(msg) {
 /// Just pass the request and the app — all plumbing is handled here.
 pub fn serve(
   req: Request(Connection),
-  app: lustre.App(Nil, model, msg),
+  app: lustre.App(flags, model, msg),
+  flags: flags,
 ) -> Response(ResponseData) {
   mist.websocket(
     request: req,
-    on_init: fn(_connection) { init_socket(app) },
+    on_init: fn(_connection) { init_socket(app, flags) },
     handler: loop_socket,
     on_close: close_socket,
   )
@@ -35,12 +37,14 @@ pub fn serve(
 // --- Internals ---
 
 fn init_socket(
-  app: lustre.App(Nil, model, msg),
+  app: lustre.App(flags, model, msg),
+  flags: flags,
 ) -> #(
   ComponentSocket(msg),
   Option(Selector(server_component.ClientMessage(msg))),
 ) {
-  let assert Ok(runtime) = lustre.start_server_component(app, Nil)
+  io.println("[ws] socket init")
+  let assert Ok(runtime) = lustre.start_server_component(app, flags)
 
   let self = process.new_subject()
   let selector =
@@ -77,7 +81,10 @@ fn loop_socket(
     }
 
     mist.Binary(_) -> mist.continue(state)
-    mist.Closed | mist.Shutdown -> mist.stop()
+    mist.Closed | mist.Shutdown -> {
+      io.println("[ws] connection closed/shutdown")
+      mist.stop()
+    }
   }
 }
 
