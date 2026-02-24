@@ -33,6 +33,6 @@ pub fn ws_handler(
   ctx: Context,
 ) -> Response(ResponseData) {
   io.println("[ws] new connection for: " <> ctx.user.name)
-  let flags = model.Flags(name: ctx.user.name, email: ctx.user.email)
+  let flags = model.Flags(name: ctx.user.name, email: ctx.user.email, db: ctx.db)
   ws.serve(req, homepage.component(), flags)
 }

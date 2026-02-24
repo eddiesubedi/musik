@@ -210,9 +210,6 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
-  .block {
-    display: block;
-  }
   .flex {
     display: flex;
   }
@@ -330,6 +327,12 @@
   .object-cover {
     object-fit: cover;
   }
+  .object-right-top {
+    object-position: right top;
+  }
+  .object-top {
+    object-position: top;
+  }
   .px-6 {
     padding-inline: calc(var(--spacing) * 6);
   }
@@ -421,11 +424,6 @@
   .md\:hidden {
     @media (width >= 48rem) {
       display: none;
-    }
-  }
-  .md\:object-right-top {
-    @media (width >= 48rem) {
-      object-position: right top;
     }
   }
   .md\:px-\[7\.8125vw\] {

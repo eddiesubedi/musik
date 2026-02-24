@@ -1,4 +1,4 @@
-pub type FetchError {
+pub type CinemetaErrors {
   NetworkError
   ParseError
 }

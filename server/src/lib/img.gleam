@@ -3,11 +3,26 @@ import gleam/list
 import gleam/string
 import lustre/attribute.{type Attribute, attribute as attr}
 
-const proxy = "http://68.67.86.21:6969/insecure/"
+@external(erlang, "persistent_term", "put")
+fn pt_put(key: String, value: String) -> Nil
+
+@external(erlang, "persistent_term", "get")
+fn pt_get(key: String) -> String
+
+const pt_key = "imgproxy_url"
+
+/// Store the imgproxy base URL. Call once at startup.
+pub fn init(imgproxy_url: String) -> Nil {
+  pt_put(pt_key, imgproxy_url)
+}
+
+fn proxy() -> String {
+  pt_get(pt_key)
+}
 
 /// Build a proxied URL with optional width.
 pub fn url(source: String, options: String) -> String {
-  proxy <> options <> "plain/" <> source
+  proxy() <> options <> "plain/" <> source
 }
 
 /// Generate `src` and `srcset` attributes for responsive images.

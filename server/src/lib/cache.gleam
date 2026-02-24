@@ -20,19 +20,8 @@ type Msg {
   Fetch(url: String, reply: process.Subject(Result(BitArray, Nil)))
 }
 
-/// Start the cache actor and create the table. Call once on startup.
+/// Start the cache actor. Call once on startup (after init creates tables).
 pub fn start(db: pog.Connection) -> Nil {
-  let assert Ok(_) =
-    pog.query(
-      "CREATE TABLE IF NOT EXISTS http_cache (
-        url          TEXT PRIMARY KEY,
-        body         BYTEA NOT NULL,
-        content_type TEXT NOT NULL DEFAULT '',
-        fetched_at   TIMESTAMPTZ DEFAULT now()
-      )",
-    )
-    |> pog.execute(db)
-
   let name = process.new_name(prefix: "http_cache")
 
   let assert Ok(started) =

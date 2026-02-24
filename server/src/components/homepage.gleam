@@ -14,7 +14,7 @@ pub fn component() -> lustre.App(Flags, Model, Msg) {
 
 fn init(flags: Flags) -> #(Model, Effect(Msg)) {
   io.println("[homepage] init for: " <> flags.name)
-  #(Loading(flags:), model.fetch_home())
+  #(Loading(flags:), model.fetch_home(flags.db))
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {

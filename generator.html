@@ -65,7 +65,7 @@
       width: 1px;
       background: #0f3460;
     }
-    textarea, pre {
+    pre {
       flex: 1;
       padding: 16px;
       font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -76,11 +76,6 @@
       resize: none;
       overflow: auto;
     }
-    textarea {
-      background: #1a1a2e;
-      color: #e0e0e0;
-    }
-    textarea::placeholder { color: #4a4a6a; }
     pre {
       background: #12122a;
       color: #e0e0e0;
@@ -92,10 +87,7 @@
     .type { color: #a8d8ea; }
     .field { color: #e0e0e0; }
     .comment { color: #6a6a8a; }
-    .copy-btn {
-      position: absolute;
-      top: 8px;
-      right: 16px;
+    .action-btn {
       padding: 4px 12px;
       background: #0f3460;
       border: 1px solid #1a5276;
@@ -104,8 +96,41 @@
       font-size: 12px;
       cursor: pointer;
     }
-    .copy-btn:hover { background: #1a5276; color: #e0e0e0; }
+    .action-btn:hover { background: #1a5276; color: #e0e0e0; }
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 16px;
+    }
     .output-wrap { position: relative; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-header { display: flex; align-items: center; gap: 8px; }
+    .panel-header-title { flex: 1; }
+    .json-editor-wrap {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      --jse-theme-color: #0f3460;
+      --jse-theme-color-highlight: #1a5276;
+      --jse-background-color: #1a1a2e;
+      --jse-panel-background: #16213e;
+      --jse-text-color: #e0e0e0;
+      --jse-text-color-inverse: #1a1a2e;
+      --jse-error-color: #ff6b6b;
+      --jse-key-color: #a8d8ea;
+      --jse-value-color-string: #98c379;
+      --jse-value-color-number: #d19a66;
+      --jse-value-color-boolean: #ffcbcb;
+      --jse-value-color-null: #6a6a8a;
+      --jse-delimiter-color: #6a6a8a;
+      --jse-selection-background-color: #1a5276;
+      --jse-selection-background-inactive-color: #0f3460;
+      --jse-context-menu-background: #16213e;
+      --jse-context-menu-color: #e0e0e0;
+      --jse-menu-color: #a0a0b8;
+    }
+    .json-editor-wrap #jsoneditor {
+      height: 100%;
+    }
   </style>
 </head>
 <body>
@@ -116,24 +141,57 @@
   </header>
   <div class="container">
     <div class="panel">
-      <div class="panel-header">JSON Input</div>
-      <textarea id="input" placeholder="Paste your JSON here..." spellcheck="false"></textarea>
+      <div class="panel-header">
+        <span class="panel-header-title">JSON Input</span>
+        <button class="action-btn" id="formatBtn">Format</button>
+      </div>
+      <div class="json-editor-wrap">
+        <div id="jsoneditor"></div>
+      </div>
     </div>
     <div class="divider"></div>
     <div class="panel">
-      <div class="panel-header">Gleam Model</div>
+      <div class="panel-header">
+        <span class="panel-header-title">Gleam Model</span>
+      </div>
       <div class="output-wrap">
-        <button class="copy-btn" id="copyBtn">Copy</button>
+        <button class="action-btn copy-btn" id="copyBtn">Copy</button>
         <pre id="output"></pre>
       </div>
     </div>
   </div>
 
-  <script>
-    const input = document.getElementById('input');
+  <script type="module">
+    import { JSONEditor } from 'https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@2/standalone.js';
+
     const output = document.getElementById('output');
     const rootNameInput = document.getElementById('rootName');
     const copyBtn = document.getElementById('copyBtn');
+    const formatBtn = document.getElementById('formatBtn');
+
+    let currentJson = {};
+
+    const editor = new JSONEditor({
+      target: document.getElementById('jsoneditor'),
+      props: {
+        mode: 'tree',
+        mainMenuBar: false,
+        navigationBar: false,
+        content: { json: {} },
+        onChange: (content) => {
+          try {
+            currentJson = content.json ?? JSON.parse(content.text);
+            updateGleam();
+          } catch (e) {}
+        },
+      },
+    });
+
+    formatBtn.addEventListener('click', () => {
+      try {
+        editor.set({ json: currentJson });
+      } catch (e) {}
+    });
 
     function pascalCase(str) {
       return str
@@ -185,6 +243,11 @@
       return 'String';
     }
 
+    function isCustomType(t) {
+      return !['String', 'Int', 'Float', 'Bool'].includes(t)
+        && !t.startsWith('List(') && !t.startsWith('Option(');
+    }
+
     // Scan ALL array elements to detect which fields are optional
     function generateTypeFromArray(name, arr, types) {
       if (types.has(name)) return;
@@ -193,22 +256,42 @@
       // Collect all keys across all elements
       const allKeys = new Set();
       const keyCounts = {};
+      const bestSamples = {};  // first non-null/undefined value per key
+      const hasFloat = {};     // true if ANY element has a non-integer number
       for (const item of arr) {
         if (typeof item !== 'object' || item === null) continue;
         for (const key of Object.keys(item)) {
           allKeys.add(key);
           keyCounts[key] = (keyCounts[key] || 0) + 1;
+          // Track best value for type inference — prefer non-empty arrays
+          if (item[key] !== null && item[key] !== undefined) {
+            const cur = bestSamples[key];
+            if (cur === undefined
+              || (Array.isArray(cur) && cur.length === 0 && Array.isArray(item[key]) && item[key].length > 0)) {
+              bestSamples[key] = item[key];
+            }
+          }
+          // Track if any number value is non-integer (JS eats 6.0 → 6)
+          if (typeof item[key] === 'number' && !Number.isInteger(item[key])) {
+            hasFloat[key] = true;
+          }
         }
       }
 
-      // Use the first element for type inference, but mark missing fields as optional
-      const first = arr[0];
       const fields = [];
       for (const key of allKeys) {
         const fieldName = snakeCase(key);
-        const sampleValue = first[key];
-        let fieldType = gleamType(sampleValue !== undefined ? sampleValue : null, key, types, name);
+        const sampleValue = key in bestSamples ? bestSamples[key] : null;
+        let fieldType = gleamType(sampleValue, key, types, name);
+        // If ANY element had a non-integer, override Int → Float
+        if (hasFloat[key] && fieldType === 'Int') {
+          fieldType = 'Float';
+        }
         const optional = keyCounts[key] < arr.length;
+        // Custom types have no sensible default — wrap optional ones in Option()
+        if (optional && isCustomType(fieldType)) {
+          fieldType = `Option(${fieldType})`;
+        }
         fields.push({ name: fieldName, jsonKey: key, type: fieldType, optional });
       }
 
@@ -246,8 +329,8 @@
       return { types, note: null };
     }
 
-    function decoderForType(fieldType) {
-      if (fieldType === 'String') return 'decode.string';
+    function decoderForType(fieldType, optional = false) {
+      if (fieldType === 'String') return optional ? 'nullable_string()' : 'decode.string';
       if (fieldType === 'Int') return 'decode.int';
       if (fieldType === 'Float') return 'decode.float';
       if (fieldType === 'Bool') return 'decode.bool';
@@ -258,7 +341,8 @@
       }
       if (fieldType.startsWith('List(')) {
         const inner = fieldType.slice(5, -1);
-        return `decode.list(${decoderForType(inner)})`;
+        const listDec = `decode.list(${decoderForType(inner)})`;
+        return optional ? `decode.one_of(${listDec}, or: [decode.success([])])` : listDec;
       }
       // It's a custom type — use its decoder function
       const fnName = snakeCase(fieldType) + '_decoder()';
@@ -297,6 +381,21 @@
         lines.push('}\n');
       }
 
+      // --- Helpers ---
+      // Check if any optional string/list fields exist
+      let needsNullableString = false;
+      for (const [, fields] of types) {
+        for (const f of fields) {
+          if (f.optional && f.type === 'String') needsNullableString = true;
+        }
+      }
+      if (needsNullableString) {
+        lines.push(`<span class="comment">/// Accepts a string or null, returns "" for null</span>`);
+        lines.push(`<span class="kw">fn</span> <span class="field">nullable_string</span>() -> <span class="type">decode.Decoder</span>(<span class="type">String</span>) {`);
+        lines.push(`  <span class="type">decode.one_of</span>(<span class="type">decode.string</span>, <span class="field">or:</span> [<span class="type">decode.success</span>(<span class="comment">""</span>)])`);
+        lines.push('}\n');
+      }
+
       // --- Decoders ---
       lines.push(`<span class="comment">// --- Decoders ---</span>\n`);
       for (const [name, fields] of types) {
@@ -304,7 +403,7 @@
         lines.push(`<span class="kw">pub fn</span> <span class="field">${escHtml(fnName)}</span>() -> <span class="type">decode.Decoder</span>(<span class="type">${escHtml(name)}</span>) {`);
 
         for (const f of fields) {
-          const dec = decoderForType(f.type);
+          const dec = decoderForType(f.type, f.optional);
           if (f.optional) {
             const def = defaultForType(f.type);
             lines.push(`  <span class="kw">use</span> <span class="field">${escHtml(f.name)}</span> <span class="kw">&lt;-</span> <span class="type">decode.optional_field</span>(<span class="comment">"${escHtml(f.jsonKey)}"</span>, ${escHtml(def)}, ${escHtml(dec)})`);
@@ -324,24 +423,16 @@
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function update() {
-      const raw = input.value.trim();
-      if (!raw) {
-        output.innerHTML = '<span class="comment">// Paste JSON on the left</span>';
-        return;
-      }
-
+    function updateGleam() {
       try {
-        const json = JSON.parse(raw);
-        const { types, note } = generate(json, rootNameInput.value);
+        const { types, note } = generate(currentJson, rootNameInput.value);
         output.innerHTML = renderTypes(types, note);
       } catch (e) {
-        output.innerHTML = `<span class="error">// Invalid JSON: ${escHtml(e.message)}</span>`;
+        output.innerHTML = `<span class="error">// Error: ${escHtml(e.message)}</span>`;
       }
     }
 
-    input.addEventListener('input', update);
-    rootNameInput.addEventListener('input', update);
+    rootNameInput.addEventListener('input', updateGleam);
 
     copyBtn.addEventListener('click', () => {
       const text = output.textContent || output.innerText;
@@ -351,7 +442,7 @@
       });
     });
 
-    update();
+    updateGleam();
   </script>
 </body>
 </html>

@@ -2,24 +2,6 @@ import gleam/bit_array
 import pog
 import plumbing/sql
 
-/// Create the sessions table if it doesn't exist.
-pub fn init(db: pog.Connection) -> Nil {
-  let assert Ok(_) =
-    pog.query(
-      "CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        access_token TEXT NOT NULL DEFAULT '',
-        refresh_token TEXT NOT NULL DEFAULT '',
-        refreshed_at TIMESTAMPTZ DEFAULT now(),
-        created_at TIMESTAMPTZ DEFAULT now()
-      )",
-    )
-    |> pog.execute(db)
-  Nil
-}
-
 /// Generate a cryptographically random session ID.
 pub fn generate_id() -> String {
   strong_rand_bytes(32)

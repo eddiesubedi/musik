@@ -19,16 +19,19 @@ pub fn view(hero: Hero) -> Element(Msg) {
     ],
     [
       html.div([attribute.class("h-[var(--hero-h)] relative")], [
+        // Mobile: poster image (portrait) if available, otherwise banner
+        mobile_banner(hero),
+        // Desktop: landscape banner
         html.img(
           list.flatten([
             img.srcset(
               hero.banner,
-              [320, 384, 448, 541, 576, 672, 768, 896, 1024, 1152, 1280, 1920],
-              "",
+              [828, 1080, 1280, 1920, 2560],
+              "q:100/f:webp/",
             ),
             [
               attribute.class(
-                "object-cover md:object-right-top w-full h-full absolute",
+                "hidden md:block object-cover object-right-top w-full h-full absolute",
               ),
               attr("crossorigin", "anonymous"),
               attr(
@@ -206,6 +209,32 @@ fn logo(hero: Hero) -> Element(Msg) {
         ),
       ])
   }
+}
+
+fn mobile_banner(hero: Hero) -> Element(Msg) {
+  let src = case hero.poster {
+    "" -> hero.banner
+    url -> url
+  }
+  html.img(
+    list.flatten([
+      img.srcset(src, [480, 640, 828, 1080], "q:100/f:webp/"),
+      [
+        attribute.class(
+          "md:hidden object-cover object-top w-full h-full absolute",
+        ),
+        attr("crossorigin", "anonymous"),
+        attr(
+          "onerror",
+          "this.onerror=null;this.srcset='';this.src='https://images.unsplash.com/photo-1519638399535-1b036603ac77';var p=this.closest('[style*=\"--hue\"]');p.classList.remove('opacity-0');p.classList.add('opacity-100')",
+        ),
+        attr(
+          "onload",
+          "var p=this.closest('[style*=\"--hue\"]');var c=document.createElement('canvas'),x=c.getContext('2d');c.width=100;c.height=100;x.drawImage(this,0,0,100,100);var d=x.getImageData(0,0,100,100).data,rt=0,gt=0,bt=0,at=0;for(var i=0;i<d.length;i+=4){var a=d[i+3];rt+=d[i]*d[i]*a;gt+=d[i+1]*d[i+1]*a;bt+=d[i+2]*d[i+2]*a;at+=a}var R=at?Math.sqrt(rt/at)/255:0,G=at?Math.sqrt(gt/at)/255:0,B=at?Math.sqrt(bt/at)/255:0,mn=Math.min(R,G,B),mx=Math.max(R,G,B),hu=0;if(mx!==mn){var df=mx-mn;hu=mx===R?((G-B)/df+(G<B?6:0))*60:mx===G?((B-R)/df+2)*60:((R-G)/df+4)*60}p.style.setProperty('--hue',Math.round(hu));p.classList.remove('opacity-0');p.classList.add('opacity-100')",
+        ),
+      ],
+    ]),
+  )
 }
 
 fn generate_mobile_gradiants() -> Element(Msg) {
