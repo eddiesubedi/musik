@@ -183,6 +183,40 @@ pub fn get_hero_content(
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_cached_image` query
+/// defined in `./src/plumbing/sql/get_cached_image.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCachedImageRow {
+  GetCachedImageRow(body: BitArray, content_type: String)
+}
+
+/// Runs the `get_cached_image` query
+/// defined in `./src/plumbing/sql/get_cached_image.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_cached_image(
+  db: pog.Connection,
+  arg_1: String,
+) -> Result(pog.Returned(GetCachedImageRow), pog.QueryError) {
+  let decoder = {
+    use body <- decode.field(0, decode.bit_array)
+    use content_type <- decode.field(1, decode.string)
+    decode.success(GetCachedImageRow(body:, content_type:))
+  }
+
+  "SELECT body, content_type FROM http_cache WHERE url = $1;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_session` query
 /// defined in `./src/plumbing/sql/get_session.sql`.
 ///

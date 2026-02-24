@@ -4,6 +4,7 @@ import gleam/erlang/application
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
 import gleam/option.{None}
+import lib/img
 import mist.{type Connection, type ResponseData}
 import pages/home
 import pog
@@ -15,6 +16,9 @@ pub fn handle(db: pog.Connection) {
   fn(req: Request(Connection)) -> Response(ResponseData) {
     let segments = request.path_segments(req)
     case segments {
+      // -- Cached images (public, used by imgproxy) --
+      ["cached-img", ..] -> img.serve_cached(req, db)
+
       // -- Auth (public) --
       ["auth", "login"] -> auth.login(req)
       ["auth", "callback"] -> auth.callback(req, db)

@@ -48,7 +48,7 @@ pub fn view(hero: Hero) -> Element(Msg) {
         html.div(
           [
             attribute.class(
-              "md:hidden absolute w-full h-full bg-gradient-to-b from-transparent via-transparent via-5% to-black to-95%",
+              "md:hidden absolute w-full h-full bg-linear-to-b from-transparent via-transparent via-5% to-black to-95%",
             ),
           ],
           [],
@@ -199,15 +199,18 @@ fn logo(hero: Hero) -> Element(Msg) {
         ],
       )
     _ ->
-      fade_img.view("max-w-[var(--content-width)] max-h-[155px]", [
-        attribute.src(img.url(hero.logo, "trim:10/")),
-        attr(
-          "onerror",
-          "this.onerror=null;this.outerHTML='<h1 class=\" text-5xl font-bold max-w-[var(--content-width)] line-clamp-2 leading-tight\">"
-            <> hero.name
-            <> "</h1>'",
-        ),
-      ])
+      fade_img.view(
+        "max-w-[var(--content-width)] max-h-[155px] w-[75%] md:w-full contain-content",
+        [
+          attribute.src(img.url(hero.logo, "trim:10/")),
+          attr(
+            "onerror",
+            "this.onerror=null;this.outerHTML='<h1 class=\" text-5xl font-bold max-w-[var(--content-width)] line-clamp-2 leading-tight\">"
+              <> hero.name
+              <> "</h1>'",
+          ),
+        ],
+      )
   }
 }
 

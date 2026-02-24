@@ -237,6 +237,9 @@
   .max-h-\[155px\] {
     max-height: 155px;
   }
+  .w-\[75\%\] {
+    width: 75%;
+  }
   .w-full {
     width: 100%;
   }
@@ -277,8 +280,11 @@
   .bg-white {
     background-color: var(--color-white);
   }
-  .bg-gradient-to-b {
-    --tw-gradient-position: to bottom in oklab;
+  .bg-linear-to-b {
+    --tw-gradient-position: to bottom;
+    @supports (background-image: linear-gradient(in lab, red, red)) {
+      --tw-gradient-position: to bottom in oklab;
+    }
     background-image: linear-gradient(var(--tw-gradient-stops));
   }
   .bg-\[linear-gradient\(1turn\,\#000\,transparent_59\.36\%\)\] {
@@ -395,6 +401,9 @@
     --tw-duration: 700ms;
     transition-duration: 700ms;
   }
+  .contain-content {
+    contain: content;
+  }
   .\[--content-width\:400px\] {
     --content-width: 400px;
   }
@@ -424,6 +433,11 @@
   .md\:hidden {
     @media (width >= 48rem) {
       display: none;
+    }
+  }
+  .md\:w-full {
+    @media (width >= 48rem) {
+      width: 100%;
     }
   }
   .md\:px-\[7\.8125vw\] {

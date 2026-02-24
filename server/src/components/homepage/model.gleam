@@ -2,6 +2,7 @@ import gleam/int
 import gleam/io
 import gleam/string
 import lib/cinemeta/errors.{type CinemetaErrors}
+import lib/img
 import lustre/effect.{type Effect}
 import pog
 import services/hero/hero_service
@@ -66,9 +67,9 @@ pub fn fetch_home(db: pog.Connection) -> Effect(Msg) {
             genres: string.split(hero.genres, ", "),
             year: hero.year,
             score: hero.imdb_rating,
-            banner: hero.background,
-            poster: hero.poster,
-            logo: hero.logo,
+            banner: img.cached(hero.background),
+            poster: img.cached(hero.poster),
+            logo: img.cached(hero.logo),
             banner_hue: 220,
             imdb_id: hero.imdb_id,
           )),
@@ -84,3 +85,4 @@ pub fn fetch_home(db: pog.Connection) -> Effect(Msg) {
     Nil
   })
 }
+
