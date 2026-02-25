@@ -110,79 +110,6 @@ where id = $1
   |> pog.execute(db)
 }
 
-/// A row you get from running the `get_hero_content` query
-/// defined in `./src/plumbing/sql/get_hero_content.sql`.
-///
-/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type GetHeroContentRow {
-  GetHeroContentRow(
-    id: String,
-    imdb_id: String,
-    name: String,
-    description: String,
-    year: String,
-    imdb_rating: String,
-    genres: String,
-    media_type: String,
-    background: String,
-    logo: String,
-    poster: String,
-  )
-}
-
-/// Runs the `get_hero_content` query
-/// defined in `./src/plumbing/sql/get_hero_content.sql`.
-///
-/// > 🐿️ This function was generated automatically using v4.6.0 of
-/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub fn get_hero_content(
-  db: pog.Connection,
-  arg_1: String,
-  arg_2: Int,
-) -> Result(pog.Returned(GetHeroContentRow), pog.QueryError) {
-  let decoder = {
-    use id <- decode.field(0, decode.string)
-    use imdb_id <- decode.field(1, decode.string)
-    use name <- decode.field(2, decode.string)
-    use description <- decode.field(3, decode.string)
-    use year <- decode.field(4, decode.string)
-    use imdb_rating <- decode.field(5, decode.string)
-    use genres <- decode.field(6, decode.string)
-    use media_type <- decode.field(7, decode.string)
-    use background <- decode.field(8, decode.string)
-    use logo <- decode.field(9, decode.string)
-    use poster <- decode.field(10, decode.string)
-    decode.success(GetHeroContentRow(
-      id:,
-      imdb_id:,
-      name:,
-      description:,
-      year:,
-      imdb_rating:,
-      genres:,
-      media_type:,
-      background:,
-      logo:,
-      poster:,
-    ))
-  }
-
-  "SELECT id, imdb_id, name, description, year, imdb_rating, genres, media_type, background, logo, poster
-  FROM hero_content
-  WHERE media_type = $1
-  ORDER BY random()
-  LIMIT $2;
-"
-  |> pog.query
-  |> pog.parameter(pog.text(arg_1))
-  |> pog.parameter(pog.int(arg_2))
-  |> pog.returning(decoder)
-  |> pog.execute(db)
-}
-
 /// A row you get from running the `get_cached_image` query
 /// defined in `./src/plumbing/sql/get_cached_image.sql`.
 ///
@@ -213,6 +140,85 @@ pub fn get_cached_image(
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_hero_content` query
+/// defined in `./src/plumbing/sql/get_hero_content.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetHeroContentRow {
+  GetHeroContentRow(
+    id: String,
+    imdb_id: String,
+    name: String,
+    description: String,
+    year: String,
+    imdb_rating: String,
+    genres: String,
+    media_type: String,
+    background: String,
+    logo: String,
+    poster: String,
+    trailer_url: String,
+    trailer_audio_url: String,
+  )
+}
+
+/// Runs the `get_hero_content` query
+/// defined in `./src/plumbing/sql/get_hero_content.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_hero_content(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: Int,
+) -> Result(pog.Returned(GetHeroContentRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.string)
+    use imdb_id <- decode.field(1, decode.string)
+    use name <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use year <- decode.field(4, decode.string)
+    use imdb_rating <- decode.field(5, decode.string)
+    use genres <- decode.field(6, decode.string)
+    use media_type <- decode.field(7, decode.string)
+    use background <- decode.field(8, decode.string)
+    use logo <- decode.field(9, decode.string)
+    use poster <- decode.field(10, decode.string)
+    use trailer_url <- decode.field(11, decode.string)
+    use trailer_audio_url <- decode.field(12, decode.string)
+    decode.success(GetHeroContentRow(
+      id:,
+      imdb_id:,
+      name:,
+      description:,
+      year:,
+      imdb_rating:,
+      genres:,
+      media_type:,
+      background:,
+      logo:,
+      poster:,
+      trailer_url:,
+      trailer_audio_url:,
+    ))
+  }
+
+  "SELECT id, imdb_id, name, description, year, imdb_rating, genres, media_type, background, logo, poster, trailer_url, trailer_audio_url
+  FROM hero_content
+  WHERE media_type = $1
+  ORDER BY random()
+  LIMIT $2;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(pog.int(arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -287,6 +293,41 @@ where refreshed_at < now() - interval '1 hour'
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_stale_trailers` query
+/// defined in `./src/plumbing/sql/get_stale_trailers.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetStaleTrailersRow {
+  GetStaleTrailersRow(id: String, trailer_yt_id: String, trailer_url: String)
+}
+
+/// Runs the `get_stale_trailers` query
+/// defined in `./src/plumbing/sql/get_stale_trailers.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_stale_trailers(
+  db: pog.Connection,
+) -> Result(pog.Returned(GetStaleTrailersRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.string)
+    use trailer_yt_id <- decode.field(1, decode.string)
+    use trailer_url <- decode.field(2, decode.string)
+    decode.success(GetStaleTrailersRow(id:, trailer_yt_id:, trailer_url:))
+  }
+
+  "SELECT id, trailer_yt_id, trailer_url
+  FROM hero_content
+  WHERE trailer_yt_id <> '';
+"
+  |> pog.query
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `hero_content_age_minutes` query
 /// defined in `./src/plumbing/sql/hero_content_age_minutes.sql`.
 ///
@@ -341,15 +382,21 @@ pub fn insert_hero_content(
   arg_9: String,
   arg_10: String,
   arg_11: String,
+  arg_12: String,
+  arg_13: String,
+  arg_14: String,
 ) -> Result(pog.Returned(Nil), pog.QueryError) {
   let decoder = decode.map(decode.dynamic, fn(_) { Nil })
 
-  "INSERT INTO hero_content (id, imdb_id, name, description, year, imdb_rating, genres, media_type, background, logo, poster)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+  "INSERT INTO hero_content (id, imdb_id, name, description, year, imdb_rating, genres, media_type, background, logo, poster, trailer_yt_id, trailer_url, trailer_audio_url)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
   ON CONFLICT (id) DO UPDATE SET
     background = EXCLUDED.background,
     logo = EXCLUDED.logo,
-    poster = EXCLUDED.poster;
+    poster = EXCLUDED.poster,
+    trailer_yt_id = EXCLUDED.trailer_yt_id,
+    trailer_url = EXCLUDED.trailer_url,
+    trailer_audio_url = EXCLUDED.trailer_audio_url;
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
@@ -363,6 +410,9 @@ pub fn insert_hero_content(
   |> pog.parameter(pog.text(arg_9))
   |> pog.parameter(pog.text(arg_10))
   |> pog.parameter(pog.text(arg_11))
+  |> pog.parameter(pog.text(arg_12))
+  |> pog.parameter(pog.text(arg_13))
+  |> pog.parameter(pog.text(arg_14))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -423,6 +473,32 @@ where id = $1
   |> pog.parameter(pog.text(arg_3))
   |> pog.parameter(pog.text(arg_4))
   |> pog.parameter(pog.text(arg_5))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// Runs the `update_trailer_urls` query
+/// defined in `./src/plumbing/sql/update_trailer_urls.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update_trailer_urls(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: String,
+  arg_3: String,
+) -> Result(pog.Returned(Nil), pog.QueryError) {
+  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+
+  "UPDATE hero_content
+  SET trailer_url = $2, trailer_audio_url = $3
+  WHERE id = $1;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

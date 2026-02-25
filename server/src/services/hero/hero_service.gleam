@@ -1,4 +1,7 @@
 import gleam/erlang/process
+import gleam/http
+import gleam/http/request
+import gleam/httpc
 import gleam/int
 import gleam/list
 import gleam/result
@@ -8,8 +11,9 @@ import lib/cinemeta/models as cinemeta_models
 import lib/cinemeta/operations as cinemeta
 import lib/fanart/fanart
 import lib/reelgood/operations as reelgood
-import pog
+import lib/ytdlp
 import plumbing/sql
+import pog
 import services/hero/errors
 import services/hero/models.{type HeroContent, HeroContent}
 
@@ -34,9 +38,7 @@ pub fn start(db: pog.Connection) -> Nil {
       Nil
     }
     True -> {
-      echo "[hero] content is "
-        <> int.to_string(age)
-        <> "min old, refreshing"
+      echo "[hero] content is " <> int.to_string(age) <> "min old, refreshing"
       let _ = sql.delete_hero_content(db, "movie")
       let _ = sql.delete_hero_content(db, "series")
       Nil
@@ -51,6 +53,71 @@ pub fn start(db: pog.Connection) -> Nil {
   fill_heroes(db, "series", 20)
   let _ = echo "[hero] done"
   Nil
+}
+
+pub fn refresh_trailers(db: pog.Connection) -> Nil {
+  case sql.get_stale_trailers(db) {
+    Ok(pog.Returned(_, rows)) -> {
+      let refreshed =
+        list.fold(rows, 0, fn(count, row) {
+          case row.trailer_url {
+            "" -> {
+              echo "[trailer-refresh] "
+                <> row.trailer_yt_id
+                <> " no url, skipping"
+              count
+            }
+            url ->
+              case is_url_alive(url) {
+                True -> {
+                  echo "[trailer-refresh] "
+                    <> row.trailer_yt_id
+                    <> " still alive"
+                  process.sleep(500)
+                  count
+                }
+                False -> {
+                  echo "[trailer-refresh] "
+                    <> row.trailer_yt_id
+                    <> " expired, re-extracting"
+                  let video =
+                    ytdlp.extract(row.trailer_yt_id, "137/136/135/134")
+                  let audio = ytdlp.extract(row.trailer_yt_id, "140")
+                  let _ = sql.update_trailer_urls(db, row.id, video, audio)
+                  process.sleep(2000)
+                  count + 1
+                }
+              }
+          }
+        })
+      echo "[trailer-refresh] done, refreshed "
+        <> int.to_string(refreshed)
+        <> "/"
+        <> int.to_string(list.length(rows))
+      Nil
+    }
+    Error(_) -> {
+      echo "[trailer-refresh] failed to query"
+      Nil
+    }
+  }
+}
+
+fn is_url_alive(url: String) -> Bool {
+  case url {
+    "" -> False
+    _ ->
+      case request.to(url) {
+        Ok(req) -> {
+          let req = request.set_method(req, http.Head)
+          case httpc.send(req) {
+            Ok(resp) -> resp.status == 200
+            Error(_) -> False
+          }
+        }
+        Error(_) -> False
+      }
+  }
 }
 
 pub fn get_random_heroes(
@@ -73,6 +140,9 @@ pub fn get_random_heroes(
           background: row.background,
           logo: row.logo,
           poster: row.poster,
+          trailer_yt_id: "",
+          trailer_url: row.trailer_url,
+          trailer_audio_url: row.trailer_audio_url,
         )
       })
     Error(_) -> []
@@ -117,6 +187,9 @@ fn fetch_loop(
               hero.background,
               hero.logo,
               hero.poster,
+              hero.trailer_yt_id,
+              hero.trailer_url,
+              hero.trailer_audio_url,
             )
           echo "Cached: " <> hero.name
           process.sleep(2000)
@@ -164,10 +237,8 @@ fn fetch_one(content_kind: String) -> Result(HeroContent, errors.HeroError) {
 
   use meta <- result.try(
     case media_type {
-      cinemeta_models.MovieType ->
-        cinemeta.get_movie(search_result.imdb_id)
-      cinemeta_models.SeriesType ->
-        cinemeta.get_series(search_result.imdb_id)
+      cinemeta_models.MovieType -> cinemeta.get_movie(search_result.imdb_id)
+      cinemeta_models.SeriesType -> cinemeta.get_series(search_result.imdb_id)
     }
     |> result.map_error(errors.CinemetaErr),
   )
@@ -177,9 +248,7 @@ fn fetch_one(content_kind: String) -> Result(HeroContent, errors.HeroError) {
   // 4. Try fanart, fall back to cinemeta/metahub (same as fetch_home)
   let art = fanart.get_best_art(media_type, meta.imdb_id, meta.tvdb_id)
   let metahub_bg =
-    "https://images.metahub.space/background/large/"
-    <> meta.imdb_id
-    <> "/img"
+    "https://images.metahub.space/background/large/" <> meta.imdb_id <> "/img"
 
   let #(background, logo, poster) = case art {
     Ok(a) -> {
@@ -210,7 +279,23 @@ fn fetch_one(content_kind: String) -> Result(HeroContent, errors.HeroError) {
   let logo = cache_image(logo)
   let poster = cache_image(poster)
 
-  // 6. Build hero with year fallback
+  // 6. Extract trailer URLs via yt-dlp (best effort, "" on failure)
+  let #(trailer_yt_id, trailer_url, trailer_audio_url) = case
+    list.first(meta.trailers)
+  {
+    Ok(trailer) -> {
+      echo "[hero] extracting trailer for "
+        <> meta.name
+        <> " yt:"
+        <> trailer.source
+      let video = ytdlp.extract(trailer.source, "137/136/135/134")
+      let audio = ytdlp.extract(trailer.source, "140")
+      #(trailer.source, video, audio)
+    }
+    Error(_) -> #("", "", "")
+  }
+
+  // 7. Build hero with year fallback
   let year = extract_year(meta.year, content.released_on)
   let genres = string.join(meta.genres, ", ")
 
@@ -227,9 +312,12 @@ fn fetch_one(content_kind: String) -> Result(HeroContent, errors.HeroError) {
       background: background,
       logo: logo,
       poster: poster,
+      trailer_yt_id: trailer_yt_id,
+      trailer_url: trailer_url,
+      trailer_audio_url: trailer_audio_url,
     )
 
-  // 7. Reject if ANY field is empty
+  // 8. Reject if ANY field is empty
   validate_hero(hero)
 }
 
@@ -268,26 +356,21 @@ fn extract_year(cinemeta_year: String, reelgood_released_on: String) -> String {
 }
 
 /// Reject hero if any field is empty
-fn validate_hero(
-  hero: HeroContent,
-) -> Result(HeroContent, errors.HeroError) {
+fn validate_hero(hero: HeroContent) -> Result(HeroContent, errors.HeroError) {
   case hero {
     _ if hero.name == "" ->
       Error(errors.MissingData(hero.imdb_id <> ": no name"))
     _ if hero.description == "" ->
       Error(errors.MissingData(hero.imdb_id <> ": no description"))
-    _ if hero.year == "" ->
-      Error(errors.MissingData(hero.name <> ": no year"))
+    _ if hero.year == "" -> Error(errors.MissingData(hero.name <> ": no year"))
     _ if hero.imdb_rating == "" ->
       Error(errors.MissingData(hero.name <> ": no rating"))
     _ if hero.genres == "" ->
       Error(errors.MissingData(hero.name <> ": no genres"))
     _ if hero.background == "" ->
       Error(errors.NoImages(hero.name <> ": no background"))
-    _ if hero.logo == "" ->
-      Error(errors.NoImages(hero.name <> ": no logo"))
-    _ if hero.poster == "" ->
-      Error(errors.NoImages(hero.name <> ": no poster"))
+    _ if hero.logo == "" -> Error(errors.NoImages(hero.name <> ": no logo"))
+    _ if hero.poster == "" -> Error(errors.NoImages(hero.name <> ": no poster"))
     _ -> Ok(hero)
   }
 }

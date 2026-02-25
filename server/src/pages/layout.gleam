@@ -53,3 +53,4 @@ pub fn render(
   |> response.set_body(mist.Bytes(page))
   |> response.set_header("content-type", "text/html")
 }
+

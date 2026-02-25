@@ -24,11 +24,14 @@ pub type Hero {
     genres: List(String),
     year: String,
     score: String,
+    media_type: String,
     banner: String,
     poster: String,
     logo: String,
     banner_hue: Int,
     imdb_id: String,
+    trailer_url: String,
+    trailer_audio_url: String,
   )
 }
 
@@ -36,7 +39,7 @@ pub type Hero {
 
 pub type Model {
   Loading(flags: Flags)
-  Loaded(flags: Flags, detail: HomePage)
+  Loaded(flags: Flags, detail: HomePage, video_playing: Bool, muted: Bool)
   Errored(flags: Flags, error: CinemetaErrors)
 }
 
@@ -44,6 +47,9 @@ pub type Model {
 
 pub type Msg {
   ApiResponded(Result(HomePage, CinemetaErrors))
+  VideoPlaying
+  VideoEnded
+  ToggleMute
 }
 
 // --- Effects ---
@@ -59,7 +65,7 @@ pub fn fetch_home(db: pog.Connection) -> Effect(Msg) {
     }
 
     let result = case hero_service.get_random_heroes(db, media_type, 1) {
-      [hero] ->
+      [hero] -> {
         Ok(
           HomePage(hero: Hero(
             name: hero.name,
@@ -67,13 +73,17 @@ pub fn fetch_home(db: pog.Connection) -> Effect(Msg) {
             genres: string.split(hero.genres, ", "),
             year: hero.year,
             score: hero.imdb_rating,
+            media_type: hero.media_type,
             banner: img.cached(hero.background),
             poster: img.cached(hero.poster),
             logo: img.cached(hero.logo),
             banner_hue: 220,
             imdb_id: hero.imdb_id,
+            trailer_url: hero.trailer_url,
+            trailer_audio_url: hero.trailer_audio_url,
           )),
         )
+      }
       _ -> {
         io.println("[fetch_home] no heroes in DB")
         Error(errors.NetworkError)

@@ -25,6 +25,10 @@ pub fn main() {
       service: fn() { hero_service.start(db) },
       interval: 86_400_000,
     ),
+    scheduler.Service(
+      service: fn() { hero_service.refresh_trailers(db) },
+      interval: 3_600_000,
+    ),
   ]
   |> scheduler.init_scheduler()
 

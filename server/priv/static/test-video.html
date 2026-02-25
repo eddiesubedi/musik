@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head><title>Video Test</title></head>
+<body style="background:#000;color:#fff;font-family:monospace">
+<h3>Test 1: autoplay + muted attribute (static HTML)</h3>
+<video id="v1" width="640" autoplay muted playsinline
+  src="https://rr5---sn-o097znzk.googlevideo.com/videoplayback?expire=1771984819&ei=UwOeadzOLbeZsfIPjuuP2QQ&ip=68.67.86.21&id=o-AKybz52ml_Mf1KJWSQ2CTGKAblzJVMmr6DRBvk63m7f3&itag=136&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&cps=415&met=1771963219%2C&mh=uM&mm=31%2C29&mn=sn-o097znzk%2Csn-n4v7snll&ms=au%2Crdu&mv=m&mvi=5&pl=23&rms=au%2Cau&initcwndbps=455000&bui=AVNa5-zQgX9GAKQ6edSJ3ZaEO7Ea20fagYPTA0MClwYuoibu9gxOCrh6LoScIh2ooMmNUZzUc2VrVf8I&spc=6dlaFLpGdu_D&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&gir=yes&clen=9147770&dur=91.024&lmt=1614742191743060&mt=1771962794&fvip=1&keepalive=yes&fexp=51552689%2C51565116%2C51565682%2C51580968&c=ANDROID_VR&txp=1432434&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AJEij0EwRQIgenTKKPqbtF5NgirDrZR3JFBftk4caRG3pLPNAjzWB9UCIQCb8EdCspKwCpm2BqzmdmrPK6iSmQJ2cOVEGO2Ltm3arQ%3D%3D&lsparams=cps%2Cmet%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=APaTxxMwRQIhAN4qlCXcxzHmH8TrFiDDtVHCzWh-sHINwGkyvAVDxO0-AiBi6Ek6pS-v2E6wxtRAvE5xqyC2ofNqBg1ETBHEUhlgMA%3D%3D"
+></video>
+<pre id="log1"></pre>
+
+<h3>Test 2: JS-created video</h3>
+<div id="container2"></div>
+<pre id="log2"></pre>
+
+<h3>Test 3: itag 18 (360p, full MP4 with audio)</h3>
+<video id="v3" width="640" autoplay muted playsinline
+  src="https://rr5---sn-o097znzk.googlevideo.com/videoplayback?expire=1771984828&ei=XAOeaZulIJyFt7EPst-EiAg&ip=68.67.86.21&id=o-AKc4iiXzG-HK_ABypUXuaGyGX6FGKHxrqVPNTKmRPnnF&itag=18&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&cps=462&met=1771963228%2C&mh=uM&mm=31%2C26&mn=sn-o097znzk%2Csn-nx57ynsk&ms=au%2Conr&mv=m&mvi=5&pl=23&rms=au%2Cau&initcwndbps=455000&bui=AVNa5-wdA5V2hkyfe_4FsNLSbFu_s15lXe_Xk_DuDV6U_zQZVrZ9ax-7DTZqRjRuggeIhg5KkKUsgvC0&spc=6dlaFAK4X4atISL40Tt_&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&cnr=14&ratebypass=yes&dur=91.115&lmt=1664073307645938&mt=1771962794&fvip=3&fexp=51552689%2C51565115%2C51565681%2C51580968&c=ANDROID_VR&txp=1438434&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Ccnr%2Cratebypass%2Cdur%2Clmt&sig=AJEij0EwRQIhANC9R6ShIH8zTAmMmyIJcoE7KzB7NIRvb89TycOAl2ZjAiAwUErAcvNaS0JVgEgQfxoeCjKM7eKuSbA7JfUkQ8-jBQ%3D%3D&lsparams=cps%2Cmet%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=APaTxxMwRgIhALm11cNnoW0FPu9sHoWkAfiZDl_lgZszgiKZADwsYL4JAiEAgKBSXUlwcvOdp0u5vAhlCTPJUiQnh061w3p4xexDRkY%3D"
+></video>
+<pre id="log3"></pre>
+
+<script>
+function log(id, msg) {
+  document.getElementById(id).textContent += msg + '\n';
+  console.log('['+id+']', msg);
+}
+
+// Test 1 logging
+var v1 = document.getElementById('v1');
+v1.onplaying = function(){ log('log1','PLAYING'); };
+v1.onerror = function(){ log('log1','ERROR: code='+v1.error?.code+' msg='+v1.error?.message); };
+v1.oncanplay = function(){ log('log1','canplay readyState='+v1.readyState); };
+v1.onstalled = function(){ log('log1','stalled'); };
+log('log1', 'muted='+v1.muted+' paused='+v1.paused+' readyState='+v1.readyState);
+
+// Test 2: JS-created
+var v2 = document.createElement('video');
+v2.muted = true;
+v2.playsInline = true;
+v2.width = 640;
+document.getElementById('container2').appendChild(v2);
+v2.onplaying = function(){ log('log2','PLAYING'); };
+v2.onerror = function(){ log('log2','ERROR: code='+v2.error?.code+' msg='+v2.error?.message); };
+v2.oncanplay = function(){ log('log2','canplay'); };
+v2.src = v1.src;
+v2.play().then(function(){ log('log2','play() resolved'); }).catch(function(e){ log('log2','play() rejected: '+e.message); });
+
+// Test 3 logging
+var v3 = document.getElementById('v3');
+v3.onplaying = function(){ log('log3','PLAYING'); };
+v3.onerror = function(){ log('log3','ERROR: code='+v3.error?.code+' msg='+v3.error?.message); };
+v3.oncanplay = function(){ log('log3','canplay readyState='+v3.readyState); };
+log('log3', 'muted='+v3.muted+' paused='+v3.paused+' src='+(v3.src?'yes':'no'));
+</script>
+</body>
+</html>

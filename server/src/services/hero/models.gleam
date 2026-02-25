@@ -11,5 +11,8 @@ pub type HeroContent {
     background: String,
     logo: String,
     poster: String,
+    trailer_yt_id: String,
+    trailer_url: String,
+    trailer_audio_url: String,
   )
 }

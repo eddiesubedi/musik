@@ -37,6 +37,7 @@ pub type Meta {
     imdb_id: String,
     tvdb_id: String,
     media_type: MediaType,
+    trailers: List(Trailers),
   )
 }
 
@@ -68,6 +69,11 @@ fn meta_decoder() -> decode.Decoder(Meta) {
       decode.map(decode.int, int.to_string),
     ]),
   )
+  use trailers <- decode.optional_field(
+    "trailers",
+    [],
+    decode.one_of(decode.list(trailers_decoder()), or: [decode.success([])]),
+  )
   decode.success(Meta(
     name:,
     description:,
@@ -79,6 +85,7 @@ fn meta_decoder() -> decode.Decoder(Meta) {
     imdb_id:,
     tvdb_id:,
     media_type: SeriesType,
+    trailers:,
   ))
 }
 
@@ -91,6 +98,11 @@ fn movie_meta_decoder() -> decode.Decoder(Meta) {
   use background <- decode.optional_field("background", "", decode.string)
   use logo <- decode.optional_field("logo", "", decode.string)
   use imdb_id <- decode.optional_field("imdb_id", "", decode.string)
+  use trailers <- decode.optional_field(
+    "trailers",
+    [],
+    decode.one_of(decode.list(trailers_decoder()), or: [decode.success([])]),
+  )
   decode.success(Meta(
     name:,
     description:,
@@ -102,6 +114,7 @@ fn movie_meta_decoder() -> decode.Decoder(Meta) {
     imdb_id:,
     tvdb_id: "",
     media_type: MovieType,
+    trailers:,
   ))
 }
 

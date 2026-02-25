@@ -37,6 +37,7 @@ pub fn handle(db: pog.Connection) {
               ["client.js"] -> serve_client_js()
               ["output.css"] -> serve_output_css()
               ["lustre", "runtime.mjs"] -> serve_lustre_runtime()
+              ["test-video.html"] -> serve_test_video()
 
               // -- Pages / WS / API --
               _ ->
@@ -76,6 +77,18 @@ fn serve_output_css() -> Response(ResponseData) {
     Error(_) ->
       response.new(404)
       |> response.set_body(mist.Bytes(bytes_tree.from_string("output.css not found")))
+  }
+}
+
+fn serve_test_video() -> Response(ResponseData) {
+  case mist.send_file("priv/static/test-video.html", offset: 0, limit: None) {
+    Ok(file) ->
+      response.new(200)
+      |> response.set_header("content-type", "text/html")
+      |> response.set_body(file)
+    Error(_) ->
+      response.new(404)
+      |> response.set_body(mist.Bytes(bytes_tree.from_string("not found")))
   }
 }
 

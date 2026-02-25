@@ -1,6 +1,7 @@
 import components/homepage/hero
 import components/homepage/model.{
   type Flags, type Model, type Msg, ApiResponded, Errored, Loaded, Loading,
+  ToggleMute, VideoEnded, VideoPlaying,
 }
 import gleam/io
 import lustre
@@ -22,11 +23,32 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
   case msg {
     ApiResponded(Ok(detail)) -> {
       io.println("[homepage] loaded: " <> detail.hero.name)
-      #(Loaded(flags:, detail:), effect.none())
+      #(
+        Loaded(flags:, detail:, video_playing: False, muted: True),
+        effect.none(),
+      )
     }
     ApiResponded(Error(error)) -> {
       io.println("[homepage] error fetching hero")
       #(Errored(flags:, error:), effect.none())
+    }
+    VideoPlaying -> {
+      case model {
+        Loaded(..) as m -> #(Loaded(..m, video_playing: True), effect.none())
+        _ -> #(model, effect.none())
+      }
+    }
+    VideoEnded -> {
+      case model {
+        Loaded(..) as m -> #(Loaded(..m, video_playing: False), effect.none())
+        _ -> #(model, effect.none())
+      }
+    }
+    ToggleMute -> {
+      case model {
+        Loaded(muted:, ..) as m -> #(Loaded(..m, muted: !muted), effect.none())
+        _ -> #(model, effect.none())
+      }
     }
   }
 }
@@ -34,7 +56,54 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
 fn view(model: Model) -> Element(Msg) {
   case model {
     Loading(..) -> html.p([], [html.text("Loading...")])
-    Loaded(detail:, ..) -> hero.view(detail.hero)
+    Loaded(detail:, video_playing:, muted:, ..) ->
+      html.div([], [
+        hero.view(detail.hero, video_playing, muted),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+        html.br([]),
+      ])
     Errored(..) -> html.p([], [html.text("Something went wrong, try again.")])
   }
 }
